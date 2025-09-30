@@ -13,8 +13,9 @@ const (
 
 	// Identifiers + literals
 
-	IDENT = "IDENT" // add, foobar, x, y, ...
-	INT   = "INT"   // 1343456
+	IDENT  = "IDENT"  // add, foobar, x, y, ...
+	INT    = "INT"    // 1343456
+	STRING = "STRING" // "hello world"
 
 	// Operators
 
