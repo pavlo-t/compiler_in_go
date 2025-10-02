@@ -143,6 +143,8 @@ func evalInfixExpression(operator string, left object.Object, right object.Objec
 	switch {
 	case left.Type() == object.INTEGER_OBJ && right.Type() == object.INTEGER_OBJ:
 		return evalIntegerInfixExpression(operator, left.(*object.Integer), right.(*object.Integer))
+	case left.Type() == object.STRING_OBJ && right.Type() == object.STRING_OBJ:
+		return evalStringInfixExpression(operator, left.(*object.String), right.(*object.String))
 	case operator == "==":
 		return nativeBoolToBooleanObject(left == right)
 	case operator == "!=":
@@ -224,6 +226,25 @@ func evalProgram(program *ast.Program, env *object.Environment) object.Object {
 		}
 	}
 	return result
+}
+
+func evalStringInfixExpression(operator string, left *object.String, right *object.String) object.Object {
+	l := left.Value
+	r := right.Value
+	switch operator {
+	case "+":
+		return &object.String{Value: l + r}
+	case "==":
+		return nativeBoolToBooleanObject(l == r)
+	case "!=":
+		return nativeBoolToBooleanObject(l != r)
+	case "<":
+		return nativeBoolToBooleanObject(l < r)
+	case ">":
+		return nativeBoolToBooleanObject(l > r)
+	default:
+		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
+	}
 }
 
 func extendFunctionEnv(fn *object.Function, args []object.Object) *object.Environment {
