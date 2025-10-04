@@ -565,106 +565,31 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{
-			"-a * b",
-			"((-a) * b)",
-		},
-		{
-			"!-a",
-			"(!(-a))",
-		},
-		{
-			"a + b + c",
-			"((a + b) + c)",
-		},
-		{
-			"a + b - c",
-			"((a + b) - c)",
-		},
-		{
-			"a * b * c",
-			"((a * b) * c)",
-		},
-		{
-			"a * b / c",
-			"((a * b) / c)",
-		},
-		{
-			"a + b / c",
-			"(a + (b / c))",
-		},
-		{
-			"a + b * c + d / e - f",
-			"(((a + (b * c)) + (d / e)) - f)",
-		},
-		{
-			"3 + 4; -5 * 5",
-			"(3 + 4)((-5) * 5)",
-		},
-		{
-			"5 > 4 == 3 < 4",
-			"((5 > 4) == (3 < 4))",
-		},
-		{
-			"5 < 4 != 3 > 4",
-			"((5 < 4) != (3 > 4))",
-		},
-		{
-			"3 + 4 * 5 == 3 * 1 + 4 * 5",
-			"((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
-		},
-		{
-			"true",
-			"true",
-		},
-		{
-			"false",
-			"false",
-		},
-		{
-			"3 > 5 == false",
-			"((3 > 5) == false)",
-		},
-		{
-			"3 < 5 == true",
-			"((3 < 5) == true)",
-		},
-		{
-			"1 + (2 + 3) + 4",
-			"((1 + (2 + 3)) + 4)",
-		},
-		{
-			"(5 + 5) * 2",
-			"((5 + 5) * 2)",
-		},
-		{
-			"2 / (5 + 5)",
-			"(2 / (5 + 5))",
-		},
-		{
-			"(5 + 5) * 2 * (5 + 5)",
-			"(((5 + 5) * 2) * (5 + 5))",
-		},
-		{
-			"-(5 + 5)",
-			"(-(5 + 5))",
-		},
-		{
-			"!(true == true)",
-			"(!(true == true))",
-		},
-		{
-			"a + add(b * c) + d",
-			"((a + add((b * c))) + d)",
-		},
-		{
-			"add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
-			"add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))",
-		},
-		{
-			"add(a + b + c * d / f + g)",
-			"add((((a + b) + ((c * d) / f)) + g))",
-		},
+		{"-a * b", "((-a) * b)"},
+		{"!-a", "(!(-a))"},
+		{"a + b + c", "((a + b) + c)"},
+		{"a + b - c", "((a + b) - c)"},
+		{"a * b * c", "((a * b) * c)"},
+		{"a * b / c", "((a * b) / c)"},
+		{"a + b / c", "(a + (b / c))"},
+		{"a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)"},
+		{"3 + 4; -5 * 5", "(3 + 4)((-5) * 5)"},
+		{"5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))"},
+		{"5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))"},
+		{"3 + 4 * 5 == 3 * 1 + 4 * 5", "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))"},
+		{"true", "true"},
+		{"false", "false"},
+		{"3 > 5 == false", "((3 > 5) == false)"},
+		{"3 < 5 == true", "((3 < 5) == true)"},
+		{"1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)"},
+		{"(5 + 5) * 2", "((5 + 5) * 2)"},
+		{"2 / (5 + 5)", "(2 / (5 + 5))"},
+		{"(5 + 5) * 2 * (5 + 5)", "(((5 + 5) * 2) * (5 + 5))"},
+		{"-(5 + 5)", "(-(5 + 5))"},
+		{"!(true == true)", "(!(true == true))"},
+		{"a + add(b * c) + d", "((a + add((b * c))) + d)"},
+		{"add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))", "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))"},
+		{"add(a + b + c * d / f + g)", "add((((a + b) + ((c * d) / f)) + g))"},
 	}
 
 	for _, tt := range tests {
@@ -677,6 +602,48 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
 		if actual != tt.expected {
 			t.Errorf("expected=%q, got=%q", tt.expected, actual)
 		}
+	}
+}
+
+func TestParsingArrayLiterals(t *testing.T) {
+	input := "[1, 2 * 2, 3 + 3]"
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	array, ok := stmt.Expression.(*ast.ArrayLiteral)
+	if !ok {
+		t.Fatalf("exp not ast.ArrayLiteral. got=%T", stmt.Expression)
+	}
+
+	if len(array.Elements) != 3 {
+		t.Fatalf("len(array.Elements) not 3. got=%d", len(array.Elements))
+	}
+
+	testIntegerLiteral(t, array.Elements[0], 1)
+	testInfixExpression(t, array.Elements[1], 2, "*", 2)
+	testInfixExpression(t, array.Elements[2], 3, "+", 3)
+}
+
+func TestParsingEmptyArrayLiterals(t *testing.T) {
+	input := "[]"
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	array, ok := stmt.Expression.(*ast.ArrayLiteral)
+	if !ok {
+		t.Fatalf("exp not ast.ArrayLiteral. got=%T", stmt.Expression)
+	}
+
+	if len(array.Elements) != 0 {
+		t.Fatalf("len(array.Elements) not 0. got=%d", len(array.Elements))
 	}
 }
 
