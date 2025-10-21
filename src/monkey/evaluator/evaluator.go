@@ -65,6 +65,9 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		body := node.Body
 		return &object.Function{Parameters: params, Body: body, Env: env}
 	case *ast.CallExpression:
+		if node.Function.TokenLiteral() == "quote" {
+			return quote(node.Arguments[0])
+		}
 		function := Eval(node.Function, env)
 		if isError(function) {
 			return function
@@ -359,6 +362,10 @@ func nativeBoolToBooleanObject(input bool) *object.Boolean {
 
 func newError(format string, a ...interface{}) *object.Error {
 	return &object.Error{Message: fmt.Sprintf(format, a...)}
+}
+
+func quote(node ast.Node) object.Object {
+	return &object.Quote{Node: node}
 }
 
 func unwrapReturnValue(obj object.Object) object.Object {
