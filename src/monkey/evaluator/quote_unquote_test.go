@@ -40,6 +40,8 @@ func TestQuoteUnquote(t *testing.T) {
 		{`quote(unquote(4 + 4))`, `8`},
 		{`quote(8 + unquote(4 + 4))`, `(8 + 8)`},
 		{`quote(unquote(4 + 4) + 8)`, `(8 + 8)`},
+		{`let foobar = 8; quote(foobar)`, `foobar`},
+		{`let foobar = 8; quote(unquote(foobar))`, `8`},
 	}
 	for _, tt := range tests {
 		evaluated := testEval(tt.input)
