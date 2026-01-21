@@ -98,8 +98,7 @@ func testConstants(
 	actual []object.Object,
 ) error {
 	if len(expected) != len(actual) {
-		return fmt.Errorf("wrong number of constants. got=%d, want=%d",
-			len(actual), len(expected))
+		return fmt.Errorf("wrong number of constants. got=%d, want=%d", len(actual), len(expected))
 	}
 
 	for i, constant := range expected {
@@ -118,8 +117,7 @@ func testConstants(
 func testIntegerObject(expected int64, actual object.Object) error {
 	result, ok := actual.(*object.Integer)
 	if !ok {
-		return fmt.Errorf("object is not Integer. got=%T (%+v)",
-			actual, actual)
+		return fmt.Errorf("object is not Integer. got=%T (%+v)", actual, actual)
 	}
 
 	if result.Value != expected {
