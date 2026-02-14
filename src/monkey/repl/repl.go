@@ -45,7 +45,7 @@ func Start(in io.Reader, out io.Writer) {
 			fmt.Fprintf(out, "Bytecode execution failed:\n %s\n", err)
 		}
 
-		stackTop := machine.StackTop()
+		stackTop := machine.LastPoppedStackElem()
 		io.WriteString(out, stackTop.Inspect())
 		io.WriteString(out, "\n")
 
