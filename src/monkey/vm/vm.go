@@ -66,6 +66,20 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		case code.OpMinus:
+			o := vm.pop()
+			if o.Type() != object.INTEGER_OBJ {
+				return fmt.Errorf("unsupported type for '-' operation: %s, value: %s", o.Type(), o)
+			}
+			err := vm.push(&object.Integer{Value: -o.(*object.Integer).Value})
+			if err != nil {
+				return err
+			}
+		case code.OpBang:
+			err := vm.push(nativeBoolToBooleanObject(vm.pop() == False))
+			if err != nil {
+				return err
+			}
 		case code.OpPop:
 			vm.pop()
 		}
