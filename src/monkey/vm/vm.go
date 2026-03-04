@@ -82,6 +82,14 @@ func (vm *VM) Run() error {
 			}
 		case code.OpPop:
 			vm.pop()
+		case code.OpJumpNotTruthy:
+			if vm.pop() == False {
+				ip = int(code.ReadUint16(vm.instructions[ip+1:])) - 1
+			} else {
+				ip += 2
+			}
+		case code.OpJump:
+			ip = int(code.ReadUint16(vm.instructions[ip+1:])) - 1
 		}
 	}
 

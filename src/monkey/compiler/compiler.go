@@ -8,20 +8,42 @@ import (
 )
 
 type Compiler struct {
-	instructions code.Instructions
-	constants    []object.Object
+	instructions        code.Instructions
+	constants           []object.Object
+	lastInstruction     EmittedInstruction
+	previousInstruction EmittedInstruction
+}
+
+type Bytecode struct {
+	Instructions code.Instructions
+	Constants    []object.Object
+}
+
+type EmittedInstruction struct {
+	Opcode   code.Opcode
+	Position int
 }
 
 func New() *Compiler {
 	return &Compiler{
-		instructions: code.Instructions{},
-		constants:    []object.Object{},
+		instructions:        code.Instructions{},
+		constants:           []object.Object{},
+		lastInstruction:     EmittedInstruction{},
+		previousInstruction: EmittedInstruction{},
 	}
 }
 
 func (c *Compiler) Compile(node ast.Node) error {
 	switch node := node.(type) {
 	case *ast.Program:
+		for _, s := range node.Statements {
+			err := c.Compile(s)
+			if err != nil {
+				return err
+			}
+		}
+
+	case *ast.BlockStatement:
 		for _, s := range node.Statements {
 			err := c.Compile(s)
 			if err != nil {
@@ -96,6 +118,40 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return fmt.Errorf("unknown operator: %s", node.Operator)
 		}
 
+	case *ast.IfExpression:
+		err := c.Compile(node.Condition)
+		if err != nil {
+			return err
+		}
+
+		jumpNotTruthyPos := c.emit(code.OpJumpNotTruthy, 0)
+
+		err = c.Compile(node.Consequence)
+		if err != nil {
+			return err
+		}
+		if c.lastInstruction.Opcode == code.OpPop {
+			c.removeLastInstruction()
+		}
+
+		var jumpPos int
+		if node.Alternative != nil {
+			jumpPos = c.emit(code.OpJump, 0)
+		}
+
+		c.changeOperand(jumpNotTruthyPos, len(c.instructions))
+
+		if node.Alternative != nil {
+			err = c.Compile(node.Alternative)
+			if err != nil {
+				return err
+			}
+			if c.lastInstruction.Opcode == code.OpPop {
+				c.removeLastInstruction()
+			}
+			c.changeOperand(jumpPos, len(c.instructions))
+		}
+
 	case *ast.IntegerLiteral:
 		integer := &object.Integer{Value: node.Value}
 		c.emit(code.OpConstant, c.addConstant(integer))
@@ -126,16 +182,26 @@ func (c *Compiler) addConstant(obj object.Object) int {
 func (c *Compiler) emit(op code.Opcode, operands ...int) int {
 	ins := code.Make(op, operands...)
 	pos := c.addInstruction(ins)
+
+	c.previousInstruction = c.lastInstruction
+	c.lastInstruction = EmittedInstruction{Opcode: op, Position: pos}
+
 	return pos
+}
+
+func (c *Compiler) removeLastInstruction() {
+	c.instructions = c.instructions[:c.lastInstruction.Position]
+	c.lastInstruction = c.previousInstruction
+}
+
+func (c *Compiler) changeOperand(pos int, operand int) {
+	op := code.Opcode(c.instructions[pos])
+	ins := code.Make(op, operand)
+	copy(c.instructions[pos:], ins)
 }
 
 func (c *Compiler) addInstruction(ins []byte) int {
 	posNewInstruction := len(c.instructions)
 	c.instructions = append(c.instructions, ins...)
 	return posNewInstruction
-}
-
-type Bytecode struct {
-	Instructions code.Instructions
-	Constants    []object.Object
 }
