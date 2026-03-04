@@ -130,27 +130,23 @@ func (c *Compiler) Compile(node ast.Node) error {
 		if err != nil {
 			return err
 		}
-		if c.lastInstruction.Opcode == code.OpPop {
-			c.removeLastInstruction()
-		}
+		c.removeLastPop()
 
-		var jumpPos int
-		if node.Alternative != nil {
-			jumpPos = c.emit(code.OpJump, 0)
-		}
+		jumpPos := c.emit(code.OpJump, 0)
 
 		c.changeOperand(jumpNotTruthyPos, len(c.instructions))
 
-		if node.Alternative != nil {
+		if node.Alternative == nil {
+			c.emit(code.OpNull)
+		} else {
 			err = c.Compile(node.Alternative)
 			if err != nil {
 				return err
 			}
-			if c.lastInstruction.Opcode == code.OpPop {
-				c.removeLastInstruction()
-			}
-			c.changeOperand(jumpPos, len(c.instructions))
+			c.removeLastPop()
 		}
+
+		c.changeOperand(jumpPos, len(c.instructions))
 
 	case *ast.IntegerLiteral:
 		integer := &object.Integer{Value: node.Value}
@@ -189,9 +185,11 @@ func (c *Compiler) emit(op code.Opcode, operands ...int) int {
 	return pos
 }
 
-func (c *Compiler) removeLastInstruction() {
-	c.instructions = c.instructions[:c.lastInstruction.Position]
-	c.lastInstruction = c.previousInstruction
+func (c *Compiler) removeLastPop() {
+	if c.lastInstruction.Opcode == code.OpPop {
+		c.instructions = c.instructions[:c.lastInstruction.Position]
+		c.lastInstruction = c.previousInstruction
+	}
 }
 
 func (c *Compiler) changeOperand(pos int, operand int) {

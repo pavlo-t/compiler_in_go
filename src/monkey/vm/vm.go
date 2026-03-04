@@ -11,6 +11,7 @@ const StackSize = 2048
 
 var True = &object.Boolean{Value: true}
 var False = &object.Boolean{Value: false}
+var Null = &object.Null{}
 
 type VM struct {
 	constants    []object.Object
@@ -76,20 +77,25 @@ func (vm *VM) Run() error {
 				return err
 			}
 		case code.OpBang:
-			err := vm.push(nativeBoolToBooleanObject(vm.pop() == False))
+			err := vm.push(nativeBoolToBooleanObject(!isTruthy(vm.pop())))
 			if err != nil {
 				return err
 			}
 		case code.OpPop:
 			vm.pop()
 		case code.OpJumpNotTruthy:
-			if vm.pop() == False {
-				ip = int(code.ReadUint16(vm.instructions[ip+1:])) - 1
-			} else {
+			if isTruthy(vm.pop()) {
 				ip += 2
+			} else {
+				ip = int(code.ReadUint16(vm.instructions[ip+1:])) - 1
 			}
 		case code.OpJump:
 			ip = int(code.ReadUint16(vm.instructions[ip+1:])) - 1
+		case code.OpNull:
+			err := vm.push(Null)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -184,6 +190,10 @@ func nativeBoolToBooleanObject(b bool) *object.Boolean {
 		return True
 	}
 	return False
+}
+
+func isTruthy(o object.Object) bool {
+	return o != False && o != Null
 }
 
 func (vm *VM) push(o object.Object) error {
