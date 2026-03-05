@@ -8,27 +8,37 @@ import (
 )
 
 const StackSize = 2048
+const GlobalsSize = 1 << 16
 
 var True = &object.Boolean{Value: true}
 var False = &object.Boolean{Value: false}
 var Null = &object.Null{}
 
 type VM struct {
-	constants    []object.Object
 	instructions code.Instructions
-
-	stack []object.Object
-	sp    int // Always points to the next value. Top of stack is stack[sp-1]
+	constants    []object.Object
+	globals      []object.Object
+	stack        []object.Object
+	sp           int // Always points to the next value. Top of stack is stack[sp-1]
 }
 
 func New(bytecode *compiler.Bytecode) *VM {
 	return &VM{
 		instructions: bytecode.Instructions,
 		constants:    bytecode.Constants,
-
-		stack: make([]object.Object, StackSize),
-		sp:    0,
+		globals:      make([]object.Object, GlobalsSize),
+		stack:        make([]object.Object, StackSize),
+		sp:           0,
 	}
+}
+
+func NewForRepl(
+	bytecode *compiler.Bytecode,
+	globals []object.Object,
+) *VM {
+	vm := New(bytecode)
+	vm.globals = globals
+	return vm
 }
 
 func (vm *VM) LastPoppedStackElem() object.Object {
@@ -93,6 +103,17 @@ func (vm *VM) Run() error {
 			ip = int(code.ReadUint16(vm.instructions[ip+1:])) - 1
 		case code.OpNull:
 			err := vm.push(Null)
+			if err != nil {
+				return err
+			}
+		case code.OpSetGlobal:
+			idx := code.ReadUint16(vm.instructions[ip+1:])
+			ip += 2
+			vm.globals[idx] = vm.pop()
+		case code.OpGetGlobal:
+			idx := code.ReadUint16(vm.instructions[ip+1:])
+			ip += 2
+			err := vm.push(vm.globals[idx])
 			if err != nil {
 				return err
 			}
