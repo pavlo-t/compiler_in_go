@@ -117,6 +117,23 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		case code.OpArray:
+			size := int(code.ReadUint16(vm.instructions[ip+1:]))
+			ip += 2
+			elements := make([]object.Object, size)
+			for i := size - 1; i >= 0; i-- {
+				elements[i] = vm.pop()
+			}
+			err := vm.push(&object.Array{Elements: elements})
+			if err != nil {
+				return err
+			}
+		default:
+			definition, err := code.Lookup(vm.instructions[ip])
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("unsupported code: %+v", definition)
 		}
 	}
 

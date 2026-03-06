@@ -108,6 +108,19 @@ func TestStringExpressions(t *testing.T) {
 	runVmTests(t, tests)
 }
 
+func TestArrayLiterals(t *testing.T) {
+	tests := []vmTestCase{
+		{"[]", []int{}},
+		{"[1, 2, 3]", []int{1, 2, 3}},
+		{"[1 + 2, 3 * 4, 5 + 6]", []int{3, 12, 11}},
+		{`["a" + "b", "c" + "d", "e" + "f"]`, []string{"ab", "cd", "ef"}},
+		{`[1, "a", true, if (false) { 1 }]`, []interface{}{1, "a", true, Null}},
+		{`[[1, 2], ["a"]]`, []interface{}{[]int{1, 2}, []string{"a"}}},
+	}
+
+	runVmTests(t, tests)
+}
+
 func runVmTests(t *testing.T, tests []vmTestCase) {
 	t.Helper()
 	for _, tt := range tests {
@@ -153,6 +166,20 @@ func testExpectedObject(
 		err := testBooleanObject(expected, actual)
 		if err != nil {
 			t.Errorf("testBooleanObject failed: %s", err)
+		}
+
+	case []interface{}:
+		array, ok := actual.(*object.Array)
+		if !ok {
+			t.Errorf("object not Array: %T (%+v)", actual, actual)
+			return
+		}
+		if len(array.Elements) != len(expected) {
+			t.Errorf("wrong num of elements. want=%d, got=%d", len(expected), len(array.Elements))
+			return
+		}
+		for i, expectedElem := range expected {
+			testExpectedObject(t, expectedElem, array.Elements[i])
 		}
 
 	case *object.Null:
