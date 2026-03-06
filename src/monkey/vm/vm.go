@@ -128,6 +128,23 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		case code.OpHash:
+			size := int(code.ReadUint16(vm.instructions[ip+1:]))
+			ip += 2
+			pairs := make(map[object.HashKey]object.HashPair, size/2)
+			for i := 0; i < size; i += 2 {
+				value := vm.pop()
+				key := vm.pop()
+				hashable, ok := key.(object.Hashable)
+				if !ok {
+					return fmt.Errorf("unusable as hash key: %s", key.Type())
+				}
+				pairs[hashable.HashKey()] = object.HashPair{Key: key, Value: value}
+			}
+			err := vm.push(&object.Hash{Pairs: pairs})
+			if err != nil {
+				return err
+			}
 		default:
 			definition, err := code.Lookup(vm.instructions[ip])
 			if err != nil {
