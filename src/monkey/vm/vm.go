@@ -145,6 +145,11 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		case code.OpIndex:
+			err := vm.executeIndexOperation()
+			if err != nil {
+				return err
+			}
 		default:
 			definition, err := code.Lookup(vm.instructions[ip])
 			if err != nil {
@@ -155,6 +160,35 @@ func (vm *VM) Run() error {
 	}
 
 	return nil
+}
+
+func (vm *VM) executeIndexOperation() error {
+	key := vm.pop()
+	obj := vm.pop()
+
+	switch {
+	case obj.Type() == object.ARRAY_OBJ && key.Type() == object.INTEGER_OBJ:
+		elements := obj.(*object.Array).Elements
+		idx := int(key.(*object.Integer).Value)
+		if idx >= 0 && idx < len(elements) {
+			return vm.push(elements[idx])
+		}
+		return vm.push(Null)
+
+	case obj.Type() == object.HASH_OBJ:
+		hashable, ok := key.(object.Hashable)
+		if !ok {
+			return fmt.Errorf("index operator not supported: %s[%s]", obj.Type(), key.Type())
+		}
+		pair, exists := obj.(*object.Hash).Pairs[hashable.HashKey()]
+		if exists {
+			return vm.push(pair.Value)
+		}
+		return vm.push(Null)
+
+	default:
+		return fmt.Errorf("index operator not supported: %s[%s]", obj.Type(), key.Type())
+	}
 }
 
 func (vm *VM) executeBinaryOperation(op code.Opcode) error {
