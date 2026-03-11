@@ -33,7 +33,7 @@ func New(bytecode *compiler.Bytecode) *VM {
 		frames:      make([]*Frame, MaxFrames),
 		framesIndex: 0,
 	}
-	vm.pushFrame(NewFrame(&object.CompiledFunction{Instructions: bytecode.Instructions}))
+	vm.pushFrame(NewFrame(&object.CompiledFunction{Instructions: bytecode.Instructions}, 0))
 	return vm
 }
 
@@ -169,12 +169,29 @@ func (vm *VM) Run() error {
 			if !ok {
 				return fmt.Errorf("expecting CompiledFunction, got: %T", obj)
 			}
-			vm.pushFrame(NewFrame(fn))
+			vm.pushFrame(NewFrame(fn, vm.sp))
+			vm.sp += fn.NumLocals
 		case code.OpReturnValue:
-			vm.popFrame()
+			returnValue := vm.pop()
+			vm.sp = vm.popFrame().basePointer
+			err := vm.push(returnValue)
+			if err != nil {
+				return err
+			}
 		case code.OpReturn:
-			vm.popFrame()
+			vm.sp = vm.popFrame().basePointer
 			err := vm.push(Null)
+			if err != nil {
+				return err
+			}
+		case code.OpSetLocal:
+			idx := code.ReadUint8(ins[ip+1:])
+			vm.currentFrame().ip += 1
+			vm.stack[vm.currentFrame().basePointer+int(idx)] = vm.pop()
+		case code.OpGetLocal:
+			idx := code.ReadUint8(ins[ip+1:])
+			vm.currentFrame().ip += 1
+			err := vm.push(vm.stack[vm.currentFrame().basePointer+int(idx)])
 			if err != nil {
 				return err
 			}
