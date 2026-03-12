@@ -7,6 +7,7 @@ import (
 	"monkey/lexer"
 	"monkey/object"
 	"monkey/parser"
+	"strings"
 	"testing"
 )
 
@@ -558,7 +559,7 @@ func TestFunctionCalls(t *testing.T) {
 			},
 			expectedInstructions: []code.Instructions{
 				code.Make(code.OpConstant, 1), // The compiled function
-				code.Make(code.OpCall),
+				code.Make(code.OpCall, 0),
 				code.Make(code.OpPop),
 			},
 		},
@@ -577,7 +578,57 @@ func TestFunctionCalls(t *testing.T) {
 				code.Make(code.OpConstant, 1), // The compiled function
 				code.Make(code.OpSetGlobal, 0),
 				code.Make(code.OpGetGlobal, 0),
-				code.Make(code.OpCall),
+				code.Make(code.OpCall, 0),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input: `
+			let oneArg = fn(a) { a };
+			oneArg(24);
+			`,
+			expectedConstants: []interface{}{
+				[]code.Instructions{
+					code.Make(code.OpGetLocal, 0),
+					code.Make(code.OpReturnValue),
+				},
+				24,
+			},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpSetGlobal, 0),
+				code.Make(code.OpGetGlobal, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpCall, 1),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input: `
+			let manyArg = fn(a, b, c) { a; b; c };
+			manyArg(24, 25, 26);
+			`,
+			expectedConstants: []interface{}{
+				[]code.Instructions{
+					code.Make(code.OpGetLocal, 0),
+					code.Make(code.OpPop),
+					code.Make(code.OpGetLocal, 1),
+					code.Make(code.OpPop),
+					code.Make(code.OpGetLocal, 2),
+					code.Make(code.OpReturnValue),
+				},
+				24,
+				25,
+				26,
+			},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpSetGlobal, 0),
+				code.Make(code.OpGetGlobal, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpConstant, 2),
+				code.Make(code.OpConstant, 3),
+				code.Make(code.OpCall, 3),
 				code.Make(code.OpPop),
 			},
 		},
@@ -663,26 +714,34 @@ func runCompilerTests(t *testing.T, tests []compilerTestCase) {
 	t.Helper()
 
 	for _, tt := range tests {
-		program := parse(tt.input)
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			program := parse(tt.input)
 
-		compiler := New()
-		err := compiler.Compile(program)
-		if err != nil {
-			t.Fatalf("compiler error: %s", err)
-		}
+			compiler := New()
+			err := compiler.Compile(program)
+			if err != nil {
+				t.Fatalf("compiler error: %s", err)
+			}
 
-		bytecode := compiler.Bytecode()
+			bytecode := compiler.Bytecode()
 
-		err = testInstructions(tt.expectedInstructions, bytecode.Instructions)
-		if err != nil {
-			t.Fatalf("testInstructions failed: %s", err)
-		}
+			err = testInstructions(tt.expectedInstructions, bytecode.Instructions)
+			if err != nil {
+				t.Fatalf("testInstructions failed: %s", err)
+			}
 
-		err = testConstants(t, tt.expectedConstants, bytecode.Constants)
-		if err != nil {
-			t.Fatalf("testConstants failed: %s", err)
-		}
+			err = testConstants(t, tt.expectedConstants, bytecode.Constants)
+			if err != nil {
+				t.Fatalf("testConstants failed: %s", err)
+			}
+		})
 	}
+}
+
+func testCaseName(input string) string {
+	name := strings.ReplaceAll(input, "\t", "")
+	name = strings.Trim(name, " \n")
+	return name
 }
 
 func parse(input string) *ast.Program {

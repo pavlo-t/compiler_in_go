@@ -70,26 +70,31 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+
 		case code.OpAdd, code.OpSub, code.OpMul, code.OpDiv:
 			err := vm.executeBinaryOperation(op)
 			if err != nil {
 				return err
 			}
+
 		case code.OpTrue:
 			err := vm.push(True)
 			if err != nil {
 				return err
 			}
+
 		case code.OpFalse:
 			err := vm.push(False)
 			if err != nil {
 				return err
 			}
+
 		case code.OpEqual, code.OpNotEqual, code.OpGreaterThan:
 			err := vm.executeComparisonOperation(op)
 			if err != nil {
 				return err
 			}
+
 		case code.OpMinus:
 			o := vm.pop()
 			if o.Type() != object.INTEGER_OBJ {
@@ -99,30 +104,37 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+
 		case code.OpBang:
 			err := vm.push(nativeBoolToBooleanObject(!isTruthy(vm.pop())))
 			if err != nil {
 				return err
 			}
+
 		case code.OpPop:
 			vm.pop()
+
 		case code.OpJumpNotTruthy:
 			if isTruthy(vm.pop()) {
 				vm.currentFrame().ip += 2
 			} else {
 				vm.currentFrame().ip = int(code.ReadUint16(ins[ip+1:])) - 1
 			}
+
 		case code.OpJump:
 			vm.currentFrame().ip = int(code.ReadUint16(ins[ip+1:])) - 1
+
 		case code.OpNull:
 			err := vm.push(Null)
 			if err != nil {
 				return err
 			}
+
 		case code.OpSetGlobal:
 			idx := code.ReadUint16(ins[ip+1:])
 			vm.currentFrame().ip += 2
 			vm.globals[idx] = vm.pop()
+
 		case code.OpGetGlobal:
 			idx := code.ReadUint16(ins[ip+1:])
 			vm.currentFrame().ip += 2
@@ -130,6 +142,7 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+
 		case code.OpArray:
 			size := int(code.ReadUint16(ins[ip+1:]))
 			vm.currentFrame().ip += 2
@@ -141,6 +154,7 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+
 		case code.OpHash:
 			size := int(code.ReadUint16(ins[ip+1:]))
 			vm.currentFrame().ip += 2
@@ -158,43 +172,55 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+
 		case code.OpIndex:
 			err := vm.executeIndexOperation()
 			if err != nil {
 				return err
 			}
+
 		case code.OpCall:
-			obj := vm.pop()
+			numArgs := int(code.ReadUint8(ins[ip+1:]))
+			vm.currentFrame().ip += 1
+			obj := vm.stack[vm.sp-1-numArgs]
 			fn, ok := obj.(*object.CompiledFunction)
 			if !ok {
 				return fmt.Errorf("expecting CompiledFunction, got: %T", obj)
 			}
-			vm.pushFrame(NewFrame(fn, vm.sp))
-			vm.sp += fn.NumLocals
+			if numArgs != fn.NumParameters {
+				return fmt.Errorf("wrong number of arguments: want=%d, got=%d", fn.NumParameters, numArgs)
+			}
+			vm.pushFrame(NewFrame(fn, vm.sp-numArgs))
+			vm.sp = vm.currentFrame().basePointer + fn.NumLocals
+
 		case code.OpReturnValue:
 			returnValue := vm.pop()
-			vm.sp = vm.popFrame().basePointer
+			vm.sp = vm.popFrame().basePointer - 1
 			err := vm.push(returnValue)
 			if err != nil {
 				return err
 			}
+
 		case code.OpReturn:
-			vm.sp = vm.popFrame().basePointer
+			vm.sp = vm.popFrame().basePointer - 1
 			err := vm.push(Null)
 			if err != nil {
 				return err
 			}
+
 		case code.OpSetLocal:
-			idx := code.ReadUint8(ins[ip+1:])
+			idx := int(code.ReadUint8(ins[ip+1:]))
 			vm.currentFrame().ip += 1
-			vm.stack[vm.currentFrame().basePointer+int(idx)] = vm.pop()
+			vm.stack[vm.currentFrame().basePointer+idx] = vm.pop()
+
 		case code.OpGetLocal:
-			idx := code.ReadUint8(ins[ip+1:])
+			idx := int(code.ReadUint8(ins[ip+1:]))
 			vm.currentFrame().ip += 1
-			err := vm.push(vm.stack[vm.currentFrame().basePointer+int(idx)])
+			err := vm.push(vm.stack[vm.currentFrame().basePointer+idx])
 			if err != nil {
 				return err
 			}
+
 		default:
 			definition, err := code.Lookup(ins[ip])
 			if err != nil {

@@ -7,6 +7,7 @@ import (
 	"monkey/lexer"
 	"monkey/object"
 	"monkey/parser"
+	"strings"
 	"testing"
 )
 
@@ -320,27 +321,141 @@ func TestCallingFunctionsWithBindings(t *testing.T) {
 	runVmTests(t, tests)
 }
 
+func TestCallingFunctionsWithArgumentsAndBindings(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let identity = fn(a) { a; };
+			identity(4);`,
+			expected: 4,
+		},
+		{
+			input: `
+			let sum = fn(a, b) { a + b; };
+			sum(1, 2);`,
+			expected: 3,
+		},
+		{
+			input: `
+			let sum = fn(a, b) {
+				let c = a + b;
+				c;
+			};
+			sum(1, 2);`,
+			expected: 3,
+		},
+		{
+			input: `
+			let sum = fn(a, b) {
+				let c = a + b;
+				c;
+			};
+			sum(1, 2) + sum(3, 4);`,
+			expected: 10,
+		},
+		{
+			input: `
+			let sum = fn(a, b) {
+				let c = a + b;
+				c;
+			};
+			let outer = fn() {
+				sum(1, 2) + sum(3, 4);
+			};
+			outer();`,
+			expected: 10,
+		},
+		{
+			input: `
+			let globalNum = 10;
+			let sum = fn(a, b) {
+				let c = a + b;
+				c + globalNum;
+			};
+			let outer = fn() {
+				sum(1, 2) + sum(3, 4) + globalNum;
+			};
+			outer() + globalNum;`,
+			expected: 50,
+		},
+		{
+			input: `
+			let f = fn(a, b) {
+				let c = a + b;
+				let d = (1+1)*2;
+				a + b + c + d
+			};
+			f(1, 2);`,
+			expected: 10,
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestCallingFunctionsWithWrongArguments(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input:    `fn() { 1; }(1);`,
+			expected: `wrong number of arguments: want=0, got=1`,
+		},
+		{
+			input:    `fn(a) { a; }();`,
+			expected: `wrong number of arguments: want=1, got=0`,
+		},
+		{
+			input:    `fn(a, b) { a + b; }(1);`,
+			expected: `wrong number of arguments: want=2, got=1`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			program := parse(tt.input)
+			comp := compiler.New()
+			err := comp.Compile(program)
+			if err != nil {
+				t.Fatalf("compiler error: %s", err)
+			}
+			vm := New(comp.Bytecode())
+			err = vm.Run()
+			if err == nil {
+				t.Fatalf("expected VM error but resulted in none.")
+			}
+			if err.Error() != tt.expected {
+				t.Fatalf("wrong VM error:\nwant=%q\ngot =%q", tt.expected, err)
+			}
+		})
+	}
+}
+
 func runVmTests(t *testing.T, tests []vmTestCase) {
 	t.Helper()
 	for _, tt := range tests {
-		program := parse(tt.input)
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			program := parse(tt.input)
 
-		comp := compiler.New()
-		err := comp.Compile(program)
-		if err != nil {
-			t.Fatalf("compiler error: %s", err)
-		}
+			comp := compiler.New()
+			err := comp.Compile(program)
+			if err != nil {
+				t.Fatalf("compiler error: %s", err)
+			}
 
-		vm := New(comp.Bytecode())
-		err = vm.Run()
-		if err != nil {
-			t.Fatalf("vm error: %s", err)
-		}
+			vm := New(comp.Bytecode())
+			err = vm.Run()
+			if err != nil {
+				t.Fatalf("vm error: %s", err)
+			}
 
-		stackElem := vm.LastPoppedStackElem()
+			stackElem := vm.LastPoppedStackElem()
 
-		testExpectedObject(t, tt.expected, stackElem)
+			testExpectedObject(t, tt.expected, stackElem)
+		})
 	}
+}
+
+func testCaseName(input string) string {
+	name := strings.ReplaceAll(input, "\t", "")
+	name = strings.Trim(name, " \n")
+	return name
 }
 
 func testExpectedObject(

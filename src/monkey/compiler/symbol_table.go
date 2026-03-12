@@ -44,7 +44,7 @@ func (t *SymbolTable) Define(name string) Symbol {
 
 func (t *SymbolTable) Resolve(name string) (Symbol, bool) {
 	symbol, exists := t.store[name]
-	if !exists {
+	if !exists && t.Outer != nil {
 		symbol, exists = t.Outer.Resolve(name)
 	}
 	return symbol, exists
