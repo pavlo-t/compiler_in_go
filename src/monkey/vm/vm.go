@@ -183,15 +183,29 @@ func (vm *VM) Run() error {
 			numArgs := int(code.ReadUint8(ins[ip+1:]))
 			vm.currentFrame().ip += 1
 			obj := vm.stack[vm.sp-1-numArgs]
-			fn, ok := obj.(*object.CompiledFunction)
-			if !ok {
-				return fmt.Errorf("expecting CompiledFunction, got: %T", obj)
+
+			switch fn := obj.(type) {
+			case *object.CompiledFunction:
+				if numArgs != fn.NumParameters {
+					return fmt.Errorf("wrong number of arguments: want=%d, got=%d", fn.NumParameters, numArgs)
+				}
+				vm.pushFrame(NewFrame(fn, vm.sp-numArgs))
+				vm.sp = vm.currentFrame().basePointer + fn.NumLocals
+
+			case *object.Builtin:
+				result := fn.Fn(vm.stack[vm.sp-numArgs : vm.sp]...)
+				if result == nil {
+					result = Null
+				}
+				vm.sp = vm.sp - 1 - numArgs
+				err := vm.push(result)
+				if err != nil {
+					return err
+				}
+
+			default:
+				return fmt.Errorf("call on non-function: %T", obj)
 			}
-			if numArgs != fn.NumParameters {
-				return fmt.Errorf("wrong number of arguments: want=%d, got=%d", fn.NumParameters, numArgs)
-			}
-			vm.pushFrame(NewFrame(fn, vm.sp-numArgs))
-			vm.sp = vm.currentFrame().basePointer + fn.NumLocals
 
 		case code.OpReturnValue:
 			returnValue := vm.pop()
@@ -217,6 +231,14 @@ func (vm *VM) Run() error {
 			idx := int(code.ReadUint8(ins[ip+1:]))
 			vm.currentFrame().ip += 1
 			err := vm.push(vm.stack[vm.currentFrame().basePointer+idx])
+			if err != nil {
+				return err
+			}
+
+		case code.OpGetBuiltin:
+			idx := int(code.ReadUint8(ins[ip+1:]))
+			vm.currentFrame().ip += 1
+			err := vm.push(object.Builtins[idx].Builtin)
 			if err != nil {
 				return err
 			}
