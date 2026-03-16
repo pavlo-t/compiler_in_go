@@ -33,7 +33,7 @@ func New(bytecode *compiler.Bytecode) *VM {
 		frames:      make([]*Frame, MaxFrames),
 		framesIndex: 0,
 	}
-	vm.pushFrame(NewFrame(&object.CompiledFunction{Instructions: bytecode.Instructions}, 0))
+	vm.pushFrame(NewFrame(&object.Closure{Fn: &object.CompiledFunction{Instructions: bytecode.Instructions}}, 0))
 	return vm
 }
 
@@ -185,12 +185,12 @@ func (vm *VM) Run() error {
 			obj := vm.stack[vm.sp-1-numArgs]
 
 			switch fn := obj.(type) {
-			case *object.CompiledFunction:
-				if numArgs != fn.NumParameters {
-					return fmt.Errorf("wrong number of arguments: want=%d, got=%d", fn.NumParameters, numArgs)
+			case *object.Closure:
+				if numArgs != fn.Fn.NumParameters {
+					return fmt.Errorf("wrong number of arguments: want=%d, got=%d", fn.Fn.NumParameters, numArgs)
 				}
 				vm.pushFrame(NewFrame(fn, vm.sp-numArgs))
-				vm.sp = vm.currentFrame().basePointer + fn.NumLocals
+				vm.sp = vm.currentFrame().basePointer + fn.Fn.NumLocals
 
 			case *object.Builtin:
 				result := fn.Fn(vm.stack[vm.sp-numArgs : vm.sp]...)
@@ -239,6 +239,21 @@ func (vm *VM) Run() error {
 			idx := int(code.ReadUint8(ins[ip+1:]))
 			vm.currentFrame().ip += 1
 			err := vm.push(object.Builtins[idx].Builtin)
+			if err != nil {
+				return err
+			}
+
+		case code.OpClosure:
+			fnIdx := code.ReadUint16(ins[ip+1:])
+			// TODO
+			_ = int(code.ReadUint8(ins[ip+3:]))
+			vm.currentFrame().ip += 3
+			obj := vm.constants[fnIdx]
+			fn, ok := obj.(*object.CompiledFunction)
+			if !ok {
+				return fmt.Errorf("expecting CompiledFunction, got %+v", obj)
+			}
+			err := vm.push(&object.Closure{Fn: fn})
 			if err != nil {
 				return err
 			}

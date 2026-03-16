@@ -199,6 +199,8 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(code.OpGetLocal, symbol.Index)
 		case BuiltinScope:
 			c.emit(code.OpGetBuiltin, symbol.Index)
+		case FreeScope:
+			c.emit(code.OpGetFree, symbol.Index)
 		default:
 			return fmt.Errorf("unsupported scope: %s in %+v", symbol.Scope, symbol)
 		}
@@ -273,11 +275,24 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 		numLocals := c.symbolTable.numDefinitions
-		c.emit(code.OpConstant, c.addConstant(&object.CompiledFunction{
-			Instructions:  c.leaveScope(),
+		freeSymbols := c.symbolTable.FreeSymbols
+		instructions := c.leaveScope()
+		for _, s := range freeSymbols {
+			switch s.Scope {
+			case LocalScope:
+				c.emit(code.OpGetLocal, s.Index)
+			case FreeScope:
+				c.emit(code.OpGetFree, s.Index)
+			default:
+				return fmt.Errorf("unsupported free symbol scope: %s in %+v", s.Scope, s)
+			}
+		}
+		fnIndex := c.addConstant(&object.CompiledFunction{
+			Instructions:  instructions,
 			NumLocals:     numLocals,
 			NumParameters: len(node.Parameters),
-		}))
+		})
+		c.emit(code.OpClosure, fnIndex, len(freeSymbols))
 
 	case *ast.ReturnStatement:
 		err := c.Compile(node.ReturnValue)

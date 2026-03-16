@@ -1,6 +1,9 @@
 package code
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestMake(t *testing.T) {
 	tests := []struct {
@@ -11,20 +14,24 @@ func TestMake(t *testing.T) {
 		{OpConstant, []int{65534}, []byte{byte(OpConstant), 255, 254}},
 		{OpAdd, []int{}, []byte{byte(OpAdd)}},
 		{OpGetLocal, []int{255}, []byte{byte(OpGetLocal), 255}},
+		{OpClosure, []int{65534, 255}, []byte{byte(OpClosure), 255, 254, 255}},
 	}
 
 	for _, tt := range tests {
-		instruction := Make(tt.op, tt.operands...)
+		def, _ := Lookup(byte(tt.op))
+		t.Run(fmt.Sprintf("%+v", def.Name), func(t *testing.T) {
+			instruction := Make(tt.op, tt.operands...)
 
-		if len(instruction) != len(tt.expected) {
-			t.Errorf("instruction has wrong length. want=%d, got=%d", len(tt.expected), len(instruction))
-		}
-
-		for i, b := range tt.expected {
-			if instruction[i] != tt.expected[i] {
-				t.Errorf("wrong byte at pos %d. want=%d, got=%d", i, b, instruction[i])
+			if len(instruction) != len(tt.expected) {
+				t.Errorf("instruction has wrong length. want=%d, got=%d", len(tt.expected), len(instruction))
 			}
-		}
+
+			for i, b := range tt.expected {
+				if instruction[i] != tt.expected[i] {
+					t.Errorf("wrong byte at pos %d. want=%d, got=%d", i, b, instruction[i])
+				}
+			}
+		})
 	}
 }
 
@@ -34,12 +41,14 @@ func TestInstructionsString(t *testing.T) {
 		Make(OpGetLocal, 1),
 		Make(OpConstant, 2),
 		Make(OpConstant, 65535),
+		Make(OpClosure, 65535, 255),
 	}
 
 	expected := `0000 OpAdd
 0001 OpGetLocal 1
 0003 OpConstant 2
 0006 OpConstant 65535
+0009 OpClosure 65535 255
 `
 
 	concatted := Instructions{}
@@ -60,6 +69,7 @@ func TestReadOperands(t *testing.T) {
 	}{
 		{OpConstant, []int{65535}, 2},
 		{OpGetLocal, []int{255}, 1},
+		{OpClosure, []int{65535, 255}, 3},
 	}
 
 	for _, tt := range tests {
@@ -76,9 +86,12 @@ func TestReadOperands(t *testing.T) {
 		}
 
 		for i, want := range tt.operands {
-			if operandsRead[i] != want {
-				t.Errorf("operand wrong.\nwant=%d\ngot =%d", want, operandsRead[i])
-			}
+			def, _ := Lookup(byte(tt.op))
+			t.Run(fmt.Sprintf("%+v", def.Name), func(t *testing.T) {
+				if operandsRead[i] != want {
+					t.Errorf("operand wrong.\nwant=%d\ngot =%d", want, operandsRead[i])
+				}
+			})
 		}
 	}
 }
