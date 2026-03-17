@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"monkey/ast"
 	"monkey/lexer"
+	"strings"
 	"testing"
 )
 
@@ -19,25 +20,27 @@ func TestLetStatements(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		l := lexer.New(tt.input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
 
-		if len(program.Statements) != 1 {
-			t.Fatalf("program.Statements does not contain 1 statements. got=%d",
-				len(program.Statements))
-		}
+			if len(program.Statements) != 1 {
+				t.Fatalf("program.Statements does not contain 1 statements. got=%d",
+					len(program.Statements))
+			}
 
-		stmt := program.Statements[0]
-		if !testLetStatement(t, stmt, tt.expectedIdentifier) {
-			return
-		}
+			stmt := program.Statements[0]
+			if !testLetStatement(t, stmt, tt.expectedIdentifier) {
+				return
+			}
 
-		val := stmt.(*ast.LetStatement).Value
-		if !testLiteralExpression(t, val, tt.expectedValue) {
-			return
-		}
+			val := stmt.(*ast.LetStatement).Value
+			if !testLiteralExpression(t, val, tt.expectedValue) {
+				return
+			}
+		})
 	}
 }
 
@@ -52,28 +55,30 @@ func TestReturnStatements(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		l := lexer.New(tt.input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
 
-		if len(program.Statements) != 1 {
-			t.Fatalf("program.Statements does not contain 1 statements. got=%d",
-				len(program.Statements))
-		}
+			if len(program.Statements) != 1 {
+				t.Fatalf("program.Statements does not contain 1 statements. got=%d",
+					len(program.Statements))
+			}
 
-		stmt := program.Statements[0]
-		returnStmt, ok := stmt.(*ast.ReturnStatement)
-		if !ok {
-			t.Fatalf("stmt not *ast.ReturnStatement. got=%T", stmt)
-		}
-		if returnStmt.TokenLiteral() != "return" {
-			t.Fatalf("returnStmt.TokenLiteral not 'return', got %q",
-				returnStmt.TokenLiteral())
-		}
-		if testLiteralExpression(t, returnStmt.ReturnValue, tt.expectedValue) {
-			return
-		}
+			stmt := program.Statements[0]
+			returnStmt, ok := stmt.(*ast.ReturnStatement)
+			if !ok {
+				t.Fatalf("stmt not *ast.ReturnStatement. got=%T", stmt)
+			}
+			if returnStmt.TokenLiteral() != "return" {
+				t.Fatalf("returnStmt.TokenLiteral not 'return', got %q",
+					returnStmt.TokenLiteral())
+			}
+			if testLiteralExpression(t, returnStmt.ReturnValue, tt.expectedValue) {
+				return
+			}
+		})
 	}
 }
 
@@ -119,30 +124,32 @@ func TestBooleanExpression(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		l := lexer.New(tt.input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
 
-		if len(program.Statements) != 1 {
-			t.Fatalf("program has not enough statements. got=%d",
-				len(program.Statements))
-		}
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has not enough statements. got=%d",
+					len(program.Statements))
+			}
 
-		stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
-		if !ok {
-			t.Fatalf("program.Statements[0] is not ast.ExpressionStatement. got=%T",
-				program.Statements[0])
-		}
+			stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+			if !ok {
+				t.Fatalf("program.Statements[0] is not ast.ExpressionStatement. got=%T",
+					program.Statements[0])
+			}
 
-		boolean, ok := stmt.Expression.(*ast.Boolean)
-		if !ok {
-			t.Fatalf("exp not *ast.Boolean. got=%T", stmt.Expression)
-		}
-		if boolean.Value != tt.expectedBoolean {
-			t.Errorf("boolean.Value not %t. got=%t", tt.expectedBoolean,
-				boolean.Value)
-		}
+			boolean, ok := stmt.Expression.(*ast.Boolean)
+			if !ok {
+				t.Fatalf("exp not *ast.Boolean. got=%T", stmt.Expression)
+			}
+			if boolean.Value != tt.expectedBoolean {
+				t.Errorf("boolean.Value not %t. got=%t", tt.expectedBoolean,
+					boolean.Value)
+			}
+		})
 	}
 }
 
@@ -449,22 +456,24 @@ func TestFunctionParameterParsing(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		l := lexer.New(tt.input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
 
-		stmt := program.Statements[0].(*ast.ExpressionStatement)
-		function := stmt.Expression.(*ast.FunctionLiteral)
+			stmt := program.Statements[0].(*ast.ExpressionStatement)
+			function := stmt.Expression.(*ast.FunctionLiteral)
 
-		if len(function.Parameters) != len(tt.expectedParams) {
-			t.Errorf("length parameters wrong. want %d, got=%d\n",
-				len(tt.expectedParams), len(function.Parameters))
-		}
+			if len(function.Parameters) != len(tt.expectedParams) {
+				t.Errorf("length parameters wrong. want %d, got=%d\n",
+					len(tt.expectedParams), len(function.Parameters))
+			}
 
-		for i, ident := range tt.expectedParams {
-			testLiteralExpression(t, function.Parameters[i], ident)
-		}
+			for i, ident := range tt.expectedParams {
+				testLiteralExpression(t, function.Parameters[i], ident)
+			}
+		})
 	}
 }
 
@@ -530,33 +539,35 @@ func TestCallExpressionParameterParsing(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		l := lexer.New(tt.input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
 
-		stmt := program.Statements[0].(*ast.ExpressionStatement)
-		exp, ok := stmt.Expression.(*ast.CallExpression)
-		if !ok {
-			t.Fatalf("stmt.Expression is not ast.CallExpression. got=%T",
-				stmt.Expression)
-		}
-
-		if !testIdentifier(t, exp.Function, tt.expectedIdent) {
-			return
-		}
-
-		if len(exp.Arguments) != len(tt.expectedArgs) {
-			t.Fatalf("wrong number of arguments. want=%d, got=%d",
-				len(tt.expectedArgs), len(exp.Arguments))
-		}
-
-		for i, arg := range tt.expectedArgs {
-			if exp.Arguments[i].String() != arg {
-				t.Errorf("argument %d wrong. want=%q, got=%q", i,
-					arg, exp.Arguments[i].String())
+			stmt := program.Statements[0].(*ast.ExpressionStatement)
+			exp, ok := stmt.Expression.(*ast.CallExpression)
+			if !ok {
+				t.Fatalf("stmt.Expression is not ast.CallExpression. got=%T",
+					stmt.Expression)
 			}
-		}
+
+			if !testIdentifier(t, exp.Function, tt.expectedIdent) {
+				return
+			}
+
+			if len(exp.Arguments) != len(tt.expectedArgs) {
+				t.Fatalf("wrong number of arguments. want=%d, got=%d",
+					len(tt.expectedArgs), len(exp.Arguments))
+			}
+
+			for i, arg := range tt.expectedArgs {
+				if exp.Arguments[i].String() != arg {
+					t.Errorf("argument %d wrong. want=%q, got=%q", i,
+						arg, exp.Arguments[i].String())
+				}
+			}
+		})
 	}
 }
 
@@ -595,15 +606,17 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		l := lexer.New(tt.input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
 
-		actual := program.String()
-		if actual != tt.expected {
-			t.Errorf("expected=%q, got=%q", tt.expected, actual)
-		}
+			actual := program.String()
+			if actual != tt.expected {
+				t.Errorf("expected=%q, got=%q", tt.expected, actual)
+			}
+		})
 	}
 }
 
@@ -828,19 +841,21 @@ func TestParsingHashLiteralsWithExpressions(t *testing.T) {
 	}
 
 	for key, value := range hash.Pairs {
-		literal, ok := key.(*ast.StringLiteral)
-		if !ok {
-			t.Errorf("key is not ast.StringLiteral. got=%T", key)
-			continue
-		}
+		t.Run(testCaseName(key.String()), func(t *testing.T) {
+			literal, ok := key.(*ast.StringLiteral)
+			if !ok {
+				t.Errorf("key is not ast.StringLiteral. got=%T", key)
+				return
+			}
 
-		testFunc, ok := tests[literal.String()]
-		if !ok {
-			t.Errorf("No test function for key %q found", literal.String())
-			continue
-		}
+			testFunc, ok := tests[literal.String()]
+			if !ok {
+				t.Errorf("No test function for key %q found", literal.String())
+				return
+			}
 
-		testFunc(value)
+			testFunc(value)
+		})
 	}
 }
 
@@ -883,6 +898,30 @@ func TestMacroLiteralParsing(t *testing.T) {
 	}
 
 	testInfixExpression(t, bodyStmt.Expression, "x", "+", "y")
+}
+
+func TestFunctionLiteralWithName(t *testing.T) {
+	input := `let myFunction = fn() { };`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Body does not contain %d statements. got=%d\n", 1, len(program.Statements))
+	}
+	stmt, ok := program.Statements[0].(*ast.LetStatement)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not ast.LetStatement. got=%T", program.Statements[0])
+	}
+	function, ok := stmt.Value.(*ast.FunctionLiteral)
+	if !ok {
+		t.Fatalf("stmt.Value is not ast.FunctionLiteral. got=%T", stmt.Value)
+	}
+	if function.Name != "myFunction" {
+		t.Fatalf("function literal name wrong. want 'myFunction', got=%q\n", function.Name)
+	}
 }
 
 func testLetStatement(t *testing.T, s ast.Statement, name string) bool {
@@ -1033,4 +1072,10 @@ func checkParserErrors(t *testing.T, p *Parser) {
 		t.Errorf("parser error: %q", msg)
 	}
 	t.FailNow()
+}
+
+func testCaseName(input string) string {
+	name := strings.ReplaceAll(input, "\t", "")
+	name = strings.Trim(name, " \n")
+	return name
 }

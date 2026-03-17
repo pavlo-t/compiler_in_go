@@ -243,17 +243,35 @@ func (vm *VM) Run() error {
 				return err
 			}
 
+		case code.OpGetFree:
+			idx := int(code.ReadUint8(ins[ip+1:]))
+			vm.currentFrame().ip += 1
+			err := vm.push(vm.currentFrame().cl.Free[idx])
+			if err != nil {
+				return err
+			}
+
 		case code.OpClosure:
 			fnIdx := code.ReadUint16(ins[ip+1:])
-			// TODO
-			_ = int(code.ReadUint8(ins[ip+3:]))
+			numFree := int(code.ReadUint8(ins[ip+3:]))
 			vm.currentFrame().ip += 3
 			obj := vm.constants[fnIdx]
 			fn, ok := obj.(*object.CompiledFunction)
 			if !ok {
 				return fmt.Errorf("expecting CompiledFunction, got %+v", obj)
 			}
-			err := vm.push(&object.Closure{Fn: fn})
+			free := make([]object.Object, numFree)
+			for i := 0; i < numFree; i++ {
+				free[i] = vm.stack[vm.sp-numFree+i]
+			}
+			vm.sp -= numFree
+			err := vm.push(&object.Closure{Fn: fn, Free: free})
+			if err != nil {
+				return err
+			}
+
+		case code.OpCurrentClosure:
+			err := vm.push(vm.currentFrame().cl)
 			if err != nil {
 				return err
 			}
