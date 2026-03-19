@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"monkey/ast"
 	"monkey/compiler"
+	"monkey/evaluator"
 	"monkey/lexer"
 	"monkey/object"
 	"monkey/parser"
@@ -23,6 +25,8 @@ func Start(in io.Reader, out io.Writer) {
 	}
 	globals := make([]object.Object, vm.GlobalsSize)
 
+	macroEnv := object.NewEnvironment()
+
 	for {
 		fmt.Fprintf(out, PROMPT)
 		scanned := scanner.Scan()
@@ -40,8 +44,11 @@ func Start(in io.Reader, out io.Writer) {
 			continue
 		}
 
+		evaluator.DefineMacros(program, macroEnv)
+		expanded := evaluator.ExpandMacros(program, macroEnv).(*ast.Program)
+
 		comp := compiler.NewForRepl(constants, symbolTable)
-		err := comp.Compile(program)
+		err := comp.Compile(expanded)
 		if err != nil {
 			fmt.Fprintf(out, "Compilation failed:\n %s\n", err)
 			continue
@@ -56,10 +63,10 @@ func Start(in io.Reader, out io.Writer) {
 		}
 
 		stackTop := machine.LastPoppedStackElem()
-		io.WriteString(out, stackTop.Inspect())
-		io.WriteString(out, "\n")
-
-		// TODO macros
+		if stackTop != nil {
+			io.WriteString(out, stackTop.Inspect())
+			io.WriteString(out, "\n")
+		}
 	}
 }
 

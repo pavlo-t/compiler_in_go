@@ -4,6 +4,7 @@ import (
 	"monkey/lexer"
 	"monkey/object"
 	"monkey/parser"
+	"strings"
 	"testing"
 )
 
@@ -30,8 +31,10 @@ func TestEvalIntegerExpression(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		testIntegerObject(t, evaluated, tt.expected)
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testIntegerObject(t, evaluated, tt.expected)
+		})
 	}
 }
 
@@ -45,8 +48,10 @@ func TestEvalStringExpression(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		testStringObject(t, evaluated, tt.expected)
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testStringObject(t, evaluated, tt.expected)
+		})
 	}
 }
 
@@ -87,8 +92,10 @@ func TestEvalBooleanExpression(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		testBooleanObject(t, evaluated, tt.expected)
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testBooleanObject(t, evaluated, tt.expected)
+		})
 	}
 }
 
@@ -106,8 +113,10 @@ func TestBangOperator(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		testBooleanObject(t, evaluated, tt.expected)
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testBooleanObject(t, evaluated, tt.expected)
+		})
 	}
 }
 
@@ -126,13 +135,15 @@ func TestIfElseExpressions(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		integer, ok := tt.expected.(int)
-		if ok {
-			testIntegerObject(t, evaluated, int64(integer))
-		} else {
-			testNullObject(t, evaluated)
-		}
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			integer, ok := tt.expected.(int)
+			if ok {
+				testIntegerObject(t, evaluated, int64(integer))
+			} else {
+				testNullObject(t, evaluated)
+			}
+		})
 	}
 }
 
@@ -155,8 +166,10 @@ if (10 > 1) {
 	}
 
 	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		testIntegerObject(t, evaluated, tt.expected)
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testIntegerObject(t, evaluated, tt.expected)
+		})
 	}
 }
 
@@ -197,19 +210,21 @@ if (10 > 1) {
 	}
 
 	for _, tt := range tests {
-		evaluated := testEval(tt.input)
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			evaluated := testEval(tt.input)
 
-		errObj, ok := evaluated.(*object.Error)
-		if !ok {
-			t.Errorf("no error object returned. got=%T(%+v)",
-				evaluated, evaluated)
-			continue
-		}
+			errObj, ok := evaluated.(*object.Error)
+			if !ok {
+				t.Errorf("no error object returned. got=%T(%+v)",
+					evaluated, evaluated)
+				return
+			}
 
-		if errObj.Message != tt.expectedMessage {
-			t.Errorf("wrong error message. expected=%q, got=%q",
-				tt.expectedMessage, errObj.Message)
-		}
+			if errObj.Message != tt.expectedMessage {
+				t.Errorf("wrong error message. expected=%q, got=%q",
+					tt.expectedMessage, errObj.Message)
+			}
+		})
 	}
 }
 
@@ -225,7 +240,9 @@ func TestLetStatements(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		testIntegerObject(t, testEval(tt.input), tt.expected)
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			testIntegerObject(t, testEval(tt.input), tt.expected)
+		})
 	}
 }
 
@@ -266,7 +283,9 @@ func TestFunctionApplication(t *testing.T) {
 		{"fn(x) { x; }(5)", 5},
 	}
 	for _, tt := range tests {
-		testIntegerObject(t, testEval(tt.input), tt.expected)
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			testIntegerObject(t, testEval(tt.input), tt.expected)
+		})
 	}
 }
 
@@ -375,13 +394,15 @@ func TestArrayIndexExpressions(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		integer, ok := tt.expected.(int)
-		if ok {
-			testIntegerObject(t, evaluated, int64(integer))
-		} else {
-			testNullObject(t, evaluated)
-		}
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			integer, ok := tt.expected.(int)
+			if ok {
+				testIntegerObject(t, evaluated, int64(integer))
+			} else {
+				testNullObject(t, evaluated)
+			}
+		})
 	}
 }
 
@@ -440,13 +461,48 @@ func TestHashIndexExpressions(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		integer, ok := tt.expected.(int)
-		if ok {
-			testIntegerObject(t, evaluated, int64(integer))
-		} else {
-			testNullObject(t, evaluated)
-		}
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			integer, ok := tt.expected.(int)
+			if ok {
+				testIntegerObject(t, evaluated, int64(integer))
+			} else {
+				testNullObject(t, evaluated)
+			}
+		})
+	}
+}
+
+func TestMacros(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{
+			input: `
+			let unless = macro(condition, consequence, alternative) {
+				quote(if (!(unquote(condition))) {
+					unquote(consequence);
+				} else {
+					unquote(alternative);
+				});
+			};
+			unless(false, 10, 20) + unless(true, 1, 2)
+			`,
+			expected: 12,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			integer, ok := tt.expected.(int)
+			if ok {
+				testIntegerObject(t, evaluated, int64(integer))
+			} else {
+				testNullObject(t, evaluated)
+			}
+		})
 	}
 }
 
@@ -455,8 +511,11 @@ func testEval(input string) object.Object {
 	p := parser.New(l)
 	program := p.ParseProgram()
 	env := object.NewEnvironment()
+	macroEnv := object.NewEnvironment()
+	DefineMacros(program, macroEnv)
+	expanded := ExpandMacros(program, macroEnv)
 
-	return Eval(program, env)
+	return Eval(expanded, env)
 }
 
 func testIntegerObject(t *testing.T, obj object.Object, expected int64) bool {
@@ -510,4 +569,10 @@ func testNullObject(t *testing.T, obj object.Object) bool {
 		return false
 	}
 	return true
+}
+
+func testCaseName(input string) string {
+	name := strings.ReplaceAll(input, "\t", "")
+	name = strings.Trim(name, " \n")
+	return name
 }

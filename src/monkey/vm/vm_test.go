@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"monkey/ast"
 	"monkey/compiler"
+	"monkey/evaluator"
 	"monkey/lexer"
 	"monkey/object"
 	"monkey/parser"
@@ -602,6 +603,25 @@ func TestRecursiveFibonacci(t *testing.T) {
 	runVmTests(t, tests)
 }
 
+func TestMacros(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let unless = macro(condition, consequence, alternative) {
+				quote(if (!(unquote(condition))) {
+					unquote(consequence);
+				} else {
+					unquote(alternative);
+				});
+			};
+			unless(false, 10, 20) + unless(true, 1, 2)
+			`,
+			expected: 12,
+		},
+	}
+	runVmTests(t, tests)
+}
+
 func runVmTests(t *testing.T, tests []vmTestCase) {
 	t.Helper()
 	for _, tt := range tests {
@@ -720,7 +740,13 @@ func testExpectedObject(
 func parse(input string) *ast.Program {
 	l := lexer.New(input)
 	p := parser.New(l)
-	return p.ParseProgram()
+
+	program := p.ParseProgram()
+	macroEnv := object.NewEnvironment()
+	evaluator.DefineMacros(program, macroEnv)
+	expanded := evaluator.ExpandMacros(program, macroEnv).(*ast.Program)
+
+	return expanded
 }
 
 func testIntegerObject(expected int64, actual object.Object) error {

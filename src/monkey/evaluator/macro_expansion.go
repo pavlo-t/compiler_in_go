@@ -3,6 +3,8 @@ package evaluator
 import (
 	"monkey/ast"
 	"monkey/object"
+
+	"github.com/brunoga/deep/v4"
 )
 
 func DefineMacros(program *ast.Program, env *object.Environment) {
@@ -61,7 +63,8 @@ func ExpandMacros(program ast.Node, env *object.Environment) ast.Node {
 		args := quoteArgs(callExpression)
 		evalEnv := extendMacroEnv(macro, args)
 
-		evaluated := Eval(macro.Body, evalEnv)
+		body, _ := deep.Copy(macro.Body)
+		evaluated := Eval(body, evalEnv)
 
 		quote, ok := evaluated.(*object.Quote)
 		if !ok {

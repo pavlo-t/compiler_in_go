@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"monkey/ast"
 	"monkey/code"
+	"monkey/evaluator"
 	"monkey/lexer"
 	"monkey/object"
 	"monkey/parser"
@@ -75,6 +76,20 @@ func TestIntegerArithmetic(t *testing.T) {
 			expectedInstructions: []code.Instructions{
 				code.Make(code.OpConstant, 0),
 				code.Make(code.OpMinus),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input:             `(10 - 5) - (2 + 2)`,
+			expectedConstants: []interface{}{10, 5, 2, 2},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpSub),
+				code.Make(code.OpConstant, 2),
+				code.Make(code.OpConstant, 3),
+				code.Make(code.OpAdd),
+				code.Make(code.OpSub),
 				code.Make(code.OpPop),
 			},
 		},
@@ -924,6 +939,44 @@ func TestRecursiveFunctions(t *testing.T) {
 	runCompilerTests(t, tests)
 }
 
+func TestMacros(t *testing.T) {
+	tests := []compilerTestCase{
+		{
+			input:             `let one = macro() { quote(1); }; one();`,
+			expectedConstants: []interface{}{1},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input:             `let infixExpression = macro() { quote(1 + 2); }; infixExpression();`,
+			expectedConstants: []interface{}{1, 2},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpAdd),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input:             `let reverse = macro(a, b) { quote(unquote(b) - unquote(a)); }; reverse(2 + 2, 10 - 5);`,
+			expectedConstants: []interface{}{10, 5, 2, 2},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpSub),
+				code.Make(code.OpConstant, 2),
+				code.Make(code.OpConstant, 3),
+				code.Make(code.OpAdd),
+				code.Make(code.OpSub),
+				code.Make(code.OpPop),
+			},
+		},
+	}
+	runCompilerTests(t, tests)
+}
+
 func runCompilerTests(t *testing.T, tests []compilerTestCase) {
 	t.Helper()
 
@@ -961,7 +1014,13 @@ func testCaseName(input string) string {
 func parse(input string) *ast.Program {
 	l := lexer.New(input)
 	p := parser.New(l)
-	return p.ParseProgram()
+
+	program := p.ParseProgram()
+	macroEnv := object.NewEnvironment()
+	evaluator.DefineMacros(program, macroEnv)
+	expanded := evaluator.ExpandMacros(program, macroEnv).(*ast.Program)
+
+	return expanded
 }
 
 func testInstructions(

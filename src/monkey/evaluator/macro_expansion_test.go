@@ -81,20 +81,37 @@ func TestExpandMacros(t *testing.T) {
 			unless(10 > 5, puts("not greater"), puts("greater"));`,
 			`if (!(10 > 5)) { puts("not greater") } else { puts("greater") }`,
 		},
+		{`
+			let unless = macro(condition, consequence, alternative) {
+				quote(if (!(unquote(condition))) {
+					unquote(consequence);
+				} else {
+					unquote(alternative);
+				});
+			};
+			unless(true, 0, 1);
+			unless(false, 2, 3);
+			`,
+			`
+			if (!(true)) { 0 } else { 1 };
+			if (!(false)) { 2 } else { 3 };`,
+		},
 	}
 
 	for _, tt := range tests {
-		expected := testParseProgram(tt.expected)
-		program := testParseProgram(tt.input)
+		t.Run(testCaseName(tt.input), func(t *testing.T) {
+			expected := testParseProgram(tt.expected)
+			program := testParseProgram(tt.input)
 
-		env := object.NewEnvironment()
-		DefineMacros(program, env)
-		expanded := ExpandMacros(program, env)
+			env := object.NewEnvironment()
+			DefineMacros(program, env)
+			expanded := ExpandMacros(program, env)
 
-		if expanded.String() != expected.String() {
-			t.Errorf("not equal. want=%q, got=%q",
-				expected.String(), expanded.String())
-		}
+			if expanded.String() != expected.String() {
+				t.Errorf("not equal.\nwant=%q\ngot =%q",
+					expected.String(), expanded.String())
+			}
+		})
 	}
 }
 
